@@ -52,10 +52,12 @@ Two of those are executed by the application rather than by the gateway, and the
 
 Four documents, one hosted call each, on the EU endpoint:
 
-- clean water bill: `safe_to_pay`, all four checks hold, USD 0.000982
-- bill with the total inflated by 100.00: `do_not_pay`, arithmetic fails by 100.00, and the account is not one the issuer publishes
-- final notice addressed to the AI: `blocked` by the guardrail before the second model runs
-- hospital letter asking for no money: `check_manually`, with arithmetic and sender both "cannot tell"
+- clean water bill: `safe_to_pay`, all four checks hold, USD 0.000987
+- bill with the total inflated by 100.00: `do_not_pay`, arithmetic fails by 100.00, and the account is not one the issuer publishes, USD 0.000906
+- final notice addressed to the AI: `blocked` by the guardrail before the second model runs, USD 0.000529
+- hospital letter asking for no money: `check_it_yourself`, with arithmetic and sender both "cannot tell", USD 0.000729
+
+The four runs together billed USD 0.003151, which is the same figure the demo video shows on its receipts card. Per-run receipts with request ids are in `runs/`.
 
 ### What I would fix next
 
@@ -63,6 +65,7 @@ The honest gap is the one above: two capabilities run in the app because a hoste
 
 ## Links
 
+- Video walkthrough (3:07): recorded from the running app, one take per section
 - Repository: https://github.com/harishkotra/fine-print
 - Issues filed while building: https://github.com/mozilla-ai/otari/issues/3142 and https://github.com/mozilla-ai/otari/issues/3143
 
