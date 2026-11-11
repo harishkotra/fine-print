@@ -1,0 +1,7 @@
+Sahyadri Power Distribution — Payment options
+https://sahyadripower.demo/pay
+
+Pay by UPI: sahyadripower@ybl
+Pay by NEFT: A/c 918020045566778, IFSC UTIB0000001 (Axis Bank, Treasury Operations)
+Consumer numbers are 9 digits and appear at the top right of every bill.
+Never pay a person. Sahyadri does not collect through individual accounts or personal UPI handles.

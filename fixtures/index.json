@@ -1,0 +1,18 @@
+{
+  "bill_clean": {
+    "image": "bill_clean.png",
+    "text": "bill_clean.txt"
+  },
+  "bill_doctored": {
+    "image": "bill_doctored.png",
+    "text": "bill_doctored.txt"
+  },
+  "notice_injection": {
+    "image": "notice_injection.png",
+    "text": "notice_injection.txt"
+  },
+  "letter_insurance": {
+    "image": "letter_insurance.png",
+    "text": "letter_insurance.txt"
+  }
+}

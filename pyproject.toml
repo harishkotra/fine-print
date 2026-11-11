@@ -1,0 +1,29 @@
+[project]
+name = "fine-print"
+version = "0.1.0"
+description = "Point a camera at a bill or a letter. Get a verified answer, not a summary."
+requires-python = ">=3.11"
+dependencies = [
+  "fastapi>=0.115",
+  "uvicorn[standard]>=0.30",
+  "httpx>=0.27",
+  "pydantic>=2.7",
+  "python-multipart>=0.0.9",
+  "jinja2>=3.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8", "reportlab>=4"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["app", "mcp_server"]
+
+[tool.setuptools.package-data]
+app = ["data/*.json", "data/issuers/*.txt"]

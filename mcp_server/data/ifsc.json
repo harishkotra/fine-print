@@ -1,0 +1,27 @@
+{
+  "_note": "Seeded with records verified against the public IFSC directory (ifsc.razorpay.com) at build time. Served by this repo's MCP server so a lookup needs no network.",
+  "_verified_on": "2026-11-11",
+  "codes": {
+    "SBIN0001234": {
+      "bank": "State Bank of India",
+      "branch": "HAJIGANJ",
+      "address": "PATNA, STATE BIHAR, PIN 800008",
+      "city": "PATNA",
+      "state": "BIHAR"
+    },
+    "HDFC0000001": {
+      "bank": "HDFC Bank",
+      "branch": "TULSIANI CHAMBERS - NARIMAN POINT",
+      "address": "101-104 TULSIANI CHAMBERS, FREE PRESS JOURNAL MARG, NARIMAN POINT",
+      "city": "MUMBAI",
+      "state": "MAHARASHTRA"
+    },
+    "UTIB0000001": {
+      "bank": "Axis Bank",
+      "branch": "TREASURY OPERATIONS",
+      "address": "CORPORATE OFFICE, 4TH FLOOR, AXIS HOUSE, BOMBAY DYEING MILLS",
+      "city": "MUMBAI",
+      "state": "MAHARASHTRA"
+    }
+  }
+}

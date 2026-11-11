@@ -1,0 +1,35 @@
+{
+  "_note": "Payment identities this app is allowed to vouch for. A sender that is not on this list is never called safe. Only add a domain you would type yourself, and only details you copied from the issuer's own page.",
+  "issuers": [
+    {
+      "name": "Nirmal Nagar Water Board",
+      "aliases": ["nirmal nagar water board", "nnwb", "nirmal nagar municipal water works", "water board"],
+      "domain": "nnwb.demo",
+      "payment_url": "https://nnwb.demo/pay",
+      "upi_suffix": "nnwb",
+      "payment_handles": ["nnwb@okhdfcbank", "nnwb@okicici"],
+      "bank_accounts": ["50100234567890"],
+      "ifsc": ["SBIN0001234"]
+    },
+    {
+      "name": "Sahyadri Power Distribution",
+      "aliases": ["sahyadri power", "spd", "sahyadri power distribution ltd", "sahyadri power distribution"],
+      "domain": "sahyadripower.demo",
+      "payment_url": "https://sahyadripower.demo/pay",
+      "upi_suffix": "sahyadripower",
+      "payment_handles": ["sahyadripower@ybl"],
+      "bank_accounts": ["918020045566778"],
+      "ifsc": ["UTIB0000001"]
+    },
+    {
+      "name": "Sunrise Multispeciality Hospital",
+      "aliases": ["sunrise hospital", "sunrise multispeciality", "sunrise multispeciality hospital"],
+      "domain": "sunrisehospital.demo",
+      "payment_url": "https://sunrisehospital.demo/payments",
+      "upi_suffix": "sunrisehospital",
+      "payment_handles": ["sunrisehospital@okaxis"],
+      "bank_accounts": ["024701234567"],
+      "ifsc": ["HDFC0000001"]
+    }
+  ]
+}

@@ -1,0 +1,7 @@
+Sunrise Multispeciality Hospital
+Billing department | sunrisehospital.demo
+Pre-authorisation query    Ref SH/PA/4471
+Your insurer has asked for the discharge summary and the itemised bill before it will settle claim 4471.
+Please send both to billing@sunrisehospital.demo within seven days. No payment is due from you at this stage.
+If the documents are not received by 18 Nov 2026, the pre-authorisation lapses and the claim will be closed.
+Documents required: discharge summary, itemised bill, investigation reports, insurance card copy.
