@@ -58,9 +58,17 @@ def money(value) -> Decimal | None:
 def recompute(doc: dict) -> dict:
     items = []
     for item in doc.get("line_items") or []:
-        amount = money(item.get("amount"))
+        if isinstance(item, dict):
+            label = str(item.get("label") or "")
+            amount = money(item.get("amount") if item.get("amount") is not None else item.get("value"))
+        else:
+            # a model that drifts off the schema still tends to print "Label 120.00"
+            text = str(item or "")
+            found = re.findall(r"-?\d[\d,]*\.\d{2}|-?\d[\d,]*", text)
+            label = re.sub(r"[\d,.]+\s*$", "", text).strip(" :-")
+            amount = money(found[-1]) if found else None
         if amount is not None:
-            items.append({"label": str(item.get("label") or ""), "amount": amount})
+            items.append({"label": label, "amount": amount})
     total = sum((i["amount"] for i in items), Decimal("0.00"))
     stated_total = money(doc.get("total_stated"))
     payable = money(doc.get("amount_payable"))
@@ -198,6 +206,11 @@ def upi_handles(text: str) -> list[dict]:
 PSP_HANDLES = {"okhdfcbank", "okicici", "oksbi", "okaxis", "ybl", "paytm", "apl", "ibl", "axl", "upi", "airtel", "fbl"}
 
 
+def _digits(value: object) -> str:
+    """Account numbers get printed with slashes, spaces and labels around them."""
+    return re.sub(r"\D", "", str(value or ""))
+
+
 def evaluate_sender(doc: dict, issuer: dict | None, mcp: dict | None, fetch: dict | None) -> Check:
     text = " ".join(str(doc.get(k) or "") for k in ("payment_upi", "payment_account", "payment_note", "sender_name"))
     handles = upi_handles(str(doc.get("payment_upi") or ""))
@@ -207,10 +220,12 @@ def evaluate_sender(doc: dict, issuer: dict | None, mcp: dict | None, fetch: dic
     if not ifsc:
         found = _IFSC.search(text)
         ifsc = found.group(1) if found else None
-    account = str(doc.get("payment_account") or "").strip() or None
+    account = _digits(doc.get("payment_account")) or None
     if not account:
         found = _ACCOUNT.search(str(doc.get("payment_note") or ""))
         account = found.group(1) if found else None
+    if account:
+        account = re.sub(r"\D", "", account) or None
 
     evidence: list[dict] = []
     if issuer:
@@ -267,7 +282,7 @@ def evaluate_sender(doc: dict, issuer: dict | None, mcp: dict | None, fetch: dic
             else:
                 problems.append(f"the handle {handle['handle']} is not one the issuer publishes")
 
-        published_accounts = [str(a) for a in issuer.get("bank_accounts") or []]
+        published_accounts = [re.sub(r"\D", "", str(a)) for a in issuer.get("bank_accounts") or []]
         if account and published_accounts:
             if account in published_accounts:
                 matched += 1

@@ -22,6 +22,9 @@ ROUTING_POLICY = os.getenv("OTARI_ROUTING_POLICY", "")
 # Guardrails. The reader request is the one that touches untrusted paper, so it is the one guarded.
 GUARDRAIL_PROFILE = os.getenv("OTARI_GUARDRAIL_PROFILE", "prompt-injection")
 GUARDRAIL_MODE = os.getenv("OTARI_GUARDRAIL_MODE", "block")
+# The guardrails service to run that profile against. A hosted deployment may have none of its
+# own, in which case the check goes to a service we run and Otari only carries the verdict.
+GUARDRAIL_URL = os.getenv("OTARI_GUARDRAIL_URL", "")
 
 # Per-person spend. The app enforces its own ceiling on top of any Otari budget, so a demo
 # cannot burn an allowance even if the gateway budget is missing.

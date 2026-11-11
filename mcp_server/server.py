@@ -95,3 +95,34 @@ def run() -> None:
     import uvicorn
 
     uvicorn.run("mcp_server.server:app", host="0.0.0.0", port=8099, reload=False)
+
+
+# ---- the guardrail check, served from the same public tunnel ------------------
+# Otari carries the guardrail verdict but needs an HTTPS endpoint to run the check against. This
+# service is reachable through the same tunnel as the MCP tool, so one public URL serves both.
+from guard_server.app import ValidateRequest, _scan  # noqa: E402
+
+
+@app.get("/profiles")
+def guard_profiles() -> list[dict[str, str]]:
+    return [{"name": "prompt-injection", "guardrail_name": "fine-print-document-injection"}]
+
+
+@app.post("/validate")
+async def guard_validate(request: Request) -> JSONResponse:
+    payload = await request.json()
+    req = ValidateRequest(**payload)
+    hits = _scan(req.input_text or "")
+    if hits:
+        reasons = "; ".join(dict.fromkeys(hits))
+        return JSONResponse(
+            {
+                "profile": req.profile,
+                "result": {
+                    "valid": False,
+                    "explanation": f"This document talks to the tool reading it: {reasons}.",
+                    "score": 0.99,
+                },
+            }
+        )
+    return JSONResponse({"profile": req.profile, "result": {"valid": True, "explanation": None, "score": 0.01}})

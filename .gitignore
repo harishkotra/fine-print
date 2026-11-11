@@ -8,3 +8,4 @@ web/dist/
 .env
 .DS_Store
 fine_print.egg-info/
+data/*.db

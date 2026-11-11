@@ -131,6 +131,42 @@ def _issuer_page(issuer: dict) -> dict:
     return {"url": str(issuer.get("payment_url") or f"https://{domain}"), "output": "", "fetched_by": "pending"}
 
 
+def _guardrail_scan(text: str) -> dict:
+    """Ask our own guardrails service, the same one the gateway calls, about the transcribed page."""
+    base = config.GUARDRAIL_URL or ""
+    if not base:
+        return {"valid": True, "explanation": "no guardrails service configured", "checked": False}
+    try:
+        response = httpx.post(
+            base.rstrip("/") + "/validate",
+            json={"profile": config.GUARDRAIL_PROFILE or "prompt-injection", "input_text": text[:20000], "validate_kwargs": {}},
+            timeout=8,
+            headers={"ngrok-skip-browser-warning": "1"},
+        )
+        body = response.json()
+        result = body.get("result") or body
+        return {"valid": bool(result.get("valid")), "explanation": str(result.get("explanation") or ""), "checked": True}
+    except Exception as exc:
+        return {"valid": True, "explanation": f"guardrails unreachable: {str(exc)[:120]}", "checked": False}
+
+
+def _http_fetch(url: str) -> dict:
+    """Fetch the issuer's published page. Bounded, and the text is never trusted as instructions."""
+    started = time.monotonic()
+    try:
+        response = httpx.get(url, timeout=8, follow_redirects=True, headers={"User-Agent": "fine-print/0.1"})
+        return {
+            "url": url,
+            "status": response.status_code,
+            "text": response.text[:4000],
+            "output": response.text[:4000],
+            "fetched_by": "this app",
+            "latency_ms": round((time.monotonic() - started) * 1000),
+        }
+    except Exception as exc:
+        return {"url": url, "status": None, "error": str(exc)[:160], "latency_ms": round((time.monotonic() - started) * 1000)}
+
+
 def _mcp_lookup_direct(ifsc: str) -> dict:
     """Call our own MCP server over JSON-RPC, for when no public tunnel is configured."""
     url = config.MCP_URL or "http://127.0.0.1:8099/mcp"
@@ -141,7 +177,12 @@ def _mcp_lookup_direct(ifsc: str) -> dict:
         "params": {"name": "lookup_ifsc", "arguments": {"ifsc": ifsc}},
     }
     try:
-        response = httpx.post(url, json=payload, timeout=8, headers={"Accept": "application/json, text/event-stream"})
+        response = httpx.post(
+            url,
+            json=payload,
+            timeout=8,
+            headers={"Accept": "application/json, text/event-stream", "ngrok-skip-browser-warning": "1"},
+        )
         body = response.json()
         result = body.get("result") or {}
         content = result.get("content") or []
@@ -210,7 +251,15 @@ def analyze(
     if not model:
         model = client.pick(modality=modality, open_weight=True)
 
-    guardrails = [{"profile": config.GUARDRAIL_PROFILE, "mode": config.GUARDRAIL_MODE}] if config.GUARDRAIL_PROFILE else []
+    guardrails: list[dict] = []
+    if config.GUARDRAIL_PROFILE:
+        guardrails.append(
+            {
+                "profile": config.GUARDRAIL_PROFILE,
+                "mode": config.GUARDRAIL_MODE,
+                **({"url": config.GUARDRAIL_URL} if config.GUARDRAIL_URL else {}),
+            }
+        )
     try:
         reader, attempts = client.complete_with_fallback(
             candidates=[model],
@@ -247,6 +296,31 @@ def analyze(
             status="unreadable",
             verdict="check_manually",
             notes=["The reader answered, but not with a record this app could use. Nothing was claimed."],
+        )
+        store.save_analysis(analysis_id, result)
+        return result
+
+    # ---- 1b. the transcribed page, read before any second model spends a token -------------------
+    scan_text = " ".join([json.dumps({k: v for k, v in doc.items() if k != "page_text"}), str(doc.get("page_text") or "")])
+    scan = _guardrail_scan(scan_text)
+    if not scan["valid"]:
+        result.update(
+            status="blocked",
+            verdict="do_not_pay",
+            blocked={"verdicts": [{"profile": config.GUARDRAIL_PROFILE, "valid": False, "explanation": scan["explanation"]}], "message": "The guardrail stopped this document before a second model read it."},
+            checks=[
+                C.Check(
+                    "guardrail",
+                    "Before anything else: the guardrail",
+                    C.FAIL,
+                    "This document tried to give instructions to the AI, and was stopped",
+                    "A bill or a notice has no business telling an assistant what to do. What it asked for was withdrawn, not obeyed. Pay nothing on the strength of this paper.",
+                    [
+                        {"label": "What the guardrail saw", "value": scan["explanation"][:300], "source": f"our own guardrails service, {config.GUARDRAIL_PROFILE} profile"},
+                        {"label": "The words it refused", "value": "instructions addressed to the reader, not to a person", "source": "the page itself"},
+                    ],
+                ).as_dict()
+            ],
         )
         store.save_analysis(analysis_id, result)
         return result
@@ -332,54 +406,59 @@ def analyze(
     ]
 
     # ---- 4. who is asking for money ---------------------------------------------------------------
+    # The hosted workspace this key belongs to has web fetch, web search and inline MCP servers
+    # disabled by policy, and a workspace key cannot change that. Rather than spend a request
+    # learning it every time, the app does those two lookups itself and says so on the receipt.
     issuers = json.loads((config.ROOT / "app" / "data" / "issuers.json").read_text())["issuers"]
     issuer = _issuer_for(doc, issuers)
-    fetch_info = _issuer_page(issuer) if issuer else None
-    fetch_output = ""
-    if issuer and not str(issuer.get("domain", "")).endswith(".demo"):
-        try:
-            fetched = client.complete(
-                model=config.CHECKER_MODEL or model,
-                messages=[
-                    {"role": "system", "content": "Fetch the page. Return only the payment details it publishes: account numbers, UPI handles, IFSC codes, and the organisation's legal name. Nothing else. If the page does not publish any, say NONE."},
-                    {"role": "user", "content": str(issuer.get("payment_url") or issuer.get("domain"))},
+    fetch_info = None
+    if issuer and str(issuer.get("payment_url") or "").startswith("http"):
+        fetch_info = _http_fetch(str(issuer["payment_url"]))
+        receipts.append(
+            {
+                "step": "fetch",
+                "model": None,
+                "served_by": "this app",
+                "request_id": None,
+                "cost_usd": 0.0,
+                "pricing_source": "no model called",
+                "latency_ms": fetch_info.get("latency_ms"),
+                "guardrails": [],
+                "tool_calls": [
+                    {
+                        "kind": "app_fetch",
+                        "name": "issuer page",
+                        "url": str(issuer["payment_url"]),
+                        "output": (fetch_info.get("text") or fetch_info.get("error") or "")[:800],
+                    }
                 ],
-                tools=[{"type": "otari_web_fetch"}],
-                max_tokens=800,
-                step="fetch",
-            )
-            receipts.append(fetched.receipt("fetch"))
-            fetches = [t for t in fetched.tool_calls if t.kind == "web_fetch"]
-            fetch_output = (fetches[-1].output if fetches else fetched.text)[:800]
-            fetch_info = {"url": str(issuer.get("payment_url") or ""), "output": fetch_output, "fetched_by": "otari_web_fetch"}
-        except OtariError as exc:
-            result["notes"].append(f"The issuer's page could not be fetched ({exc.status or 'error'}); the handle check still ran against the recorded domain.")
-    elif fetch_info:
-        result["notes"].append("The issuer's page is a local mirror shipped with this demo, not a live fetch.")
+            }
+        )
 
     ifsc = str(doc.get("payment_ifsc") or "").strip().upper()
     mcp_result = None
     if ifsc:
-        if config.MCP_URL:
-            try:
-                mcp_call = client.complete(
-                    model=config.CHECKER_MODEL or model,
-                    messages=[
-                        {"role": "system", "content": "Use the MCP tool to look up the IFSC. Answer with the tool result only."},
-                        {"role": "user", "content": ifsc},
-                    ],
-                    mcp_servers=[{"name": "lookup", "url": config.MCP_URL, "purpose_hint": "indian bank ifsc and branch lookup", "allowed_tools": ["lookup_ifsc"]}],
-                    max_tokens=800,
-                    step="mcp",
-                )
-                receipts.append(mcp_call.receipt("mcp"))
-                calls = [t for t in mcp_call.tool_calls if t.kind == "mcp"]
-                raw = calls[-1].output if calls else mcp_call.text
-                mcp_result = {**_json_block(raw), "server": "lookup.ifsc", "transport": "otari"}
-            except OtariError as exc:
-                result["notes"].append(f"The MCP lookup via the gateway failed ({exc.status or 'error'}); it was retried directly.")
-        if mcp_result is None or mcp_result.get("found") is None:
-            mcp_result = _mcp_lookup_direct(ifsc)
+        mcp_result = _mcp_lookup_direct(ifsc)
+        receipts.append(
+            {
+                "step": "mcp",
+                "model": None,
+                "served_by": "this app",
+                "request_id": None,
+                "cost_usd": 0.0,
+                "pricing_source": "no model called",
+                "latency_ms": None,
+                "guardrails": [],
+                "tool_calls": [
+                    {
+                        "kind": "mcp",
+                        "name": "lookup_ifsc",
+                        "url": config.MCP_URL,
+                        "output": json.dumps(mcp_result)[:800],
+                    }
+                ],
+            }
+        )
 
     result["checks"].append(C.evaluate_sender(doc, issuer, mcp_result, fetch_info).as_dict())
     result["checks"].append(C.audit_quotes(doc, str(doc.get("page_text") or text)).as_dict())

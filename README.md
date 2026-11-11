@@ -54,6 +54,15 @@ The Otari client in `app/otari.py` is a small `httpx` client rather than the Ope
 | Budgets | per end user monthly ceiling, the app stops and says so, spend is recorded per request |
 | MCP | `lookup_ifsc` tool, standalone server in `mcp_server/`, called by the gateway |
 
+### Where the lookup actually runs
+
+Two of those capabilities are performed by the app rather than by the gateway, and the receipts in the interface say so on every row.
+
+- **MCP.** The standalone server in `mcp_server/` speaks `initialize` / `tools/list` / `tools/call` over streamable HTTP and answers `lookup_ifsc`. A hosted Otari workspace refuses a request that names an MCP server by URL (`400`, "use a stored server through `mcp_server_ids`"), and registering a stored server on the hosted plan needs a master key, so on the hosted run the app calls the same server itself.
+- **Web fetch.** Issuer pages are fetched with `httpx` for the same reason: request-level fetching is a workspace switch that a workspace key cannot change.
+
+Both still emit a receipt with `cost_usd: 0.0` and `served_by: "this app"`, so nothing is presented as a metered gateway call that was not one. The arithmetic really does run in the Otari code sandbox, which does work on the hosted plan.
+
 ## Run it
 
 ```bash
@@ -98,6 +107,15 @@ Synthetic bills rendered by `fixtures/build_fixtures.py` for three fictional iss
 
 Each has a plain text transcription next to the PNG, used to test the refusal check without a camera.
 
+### What the hosted gateway actually returns
+
+Measured on the EU endpoint against four documents, one call each:
+
+- water bill, untampered: `safe_to_pay`, four checks hold, `$0.000982`
+- water bill, total inflated by 100.00: `do_not_pay`, arithmetic fails by `100.00` and the payment account is not one the issuer publishes, `$0.000903`
+- final notice with assistant-directed text: `blocked` by the guardrail before the second model is called, one check, no charge for a second reading
+- hospital letter asking for no money: `check_manually`, arithmetic and sender both `cannot tell`, `$0.000725`
+
 ## Tests
 
 ```bash
@@ -118,3 +136,9 @@ The end to end tests start the stub gateway on a free port, point the client at 
 ## License
 
 MIT.
+
+Built By Harish Kotra
+[harishkotra.me](https://harishkotra.me)
+
+Checkout my other builds
+[dailybuild.xyz](https://dailybuild.xyz)

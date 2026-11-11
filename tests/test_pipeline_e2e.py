@@ -72,11 +72,22 @@ def test_receipts_carry_a_request_id_and_a_real_cost(gateway):
     steps = [r["step"] for r in result["receipts"]]
     assert steps[:2] == ["read", "check"]
     for receipt in result["receipts"]:
+        if receipt["model"] is None:
+            continue
         assert receipt["request_id"]
-        assert receipt["model"]
         assert receipt["cost_usd"] >= 0
     sandbox = [r for r in result["receipts"] if r["step"] == "sandbox"]
     assert sandbox and sandbox[0]["tool_calls"], "the sandbox step must show the tool call it made"
+
+
+def test_lookups_done_in_app_are_marked_free_and_off_gateway(gateway):
+    result = _run("bill_clean")
+    local = [r for r in result["receipts"] if r["model"] is None]
+    assert {r["step"] for r in local} <= {"fetch", "mcp"}
+    for receipt in local:
+        assert receipt["cost_usd"] == 0.0
+        assert receipt["served_by"] == "this app"
+        assert receipt["tool_calls"], "an app-side lookup must still show what it read"
 
 
 def test_sandbox_output_is_real_python(gateway):
