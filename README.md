@@ -6,6 +6,8 @@ Every claim in the answer is tied to one of three sources: a value read off the 
 
 Built for the Mozilla "Devs Wilding" hackathon on the Otari gateway.
 
+[Demo Video](https://youtu.be/eVKXfbc462M)
+
 ## The problem it solves
 
 A model reading a bill will happily tell you the total is correct, because the total is printed on the page and the line items look plausible. It will tell you the payment details are fine, because it has no way to know what the sender actually publishes. The failure is silent, and it costs money.
@@ -135,4 +137,11 @@ The end to end tests start the stub gateway on a free port, point the client at 
 
 ## License
 
-MIT.
+[LICENSE](LICENSE)
+
+### Screenshots
+
+<img width="2912" height="5234" alt="fpreal_bill_clean" src="https://github.com/user-attachments/assets/7ae7d93e-1ca6-45b7-956e-333ca925c3f1" />
+<img width="2912" height="5426" alt="fpreal_bill_doctored" src="https://github.com/user-attachments/assets/9d73ee40-4d5f-453c-bf22-657765741f6f" />
+<img width="2880" height="3000" alt="fpreal_notice_injection" src="https://github.com/user-attachments/assets/27f77ebc-8adc-4567-9e60-01c58dd8a5e2" />
+<img width="2880" height="4600" alt="fpreal_letter_insurance" src="https://github.com/user-attachments/assets/b6d2699e-4697-4a36-8f7b-ce09860a4495" />
