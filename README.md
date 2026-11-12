@@ -136,9 +136,3 @@ The end to end tests start the stub gateway on a free port, point the client at 
 ## License
 
 MIT.
-
-Built By Harish Kotra
-[harishkotra.me](https://harishkotra.me)
-
-Checkout my other builds
-[dailybuild.xyz](https://dailybuild.xyz)
