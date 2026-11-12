@@ -96,8 +96,6 @@ FINE_PRINT_MCP_URL=http://127.0.0.1:8099/mcp \
 uvicorn app.api:app --port 8078
 ```
 
-The demo video uses the hosted gateway, not the stub.
-
 ## The four sample documents
 
 Synthetic bills rendered by `fixtures/build_fixtures.py` for three fictional issuers. Nothing imitates a real company, and no real person's document is used.
